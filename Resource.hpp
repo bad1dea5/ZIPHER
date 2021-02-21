@@ -1,0 +1,24 @@
+//
+//	2021-02-19T21:47:00Z
+//
+
+#define IDC_TOOLBAR			1001
+#define IDC_STATUSBAR		1002
+
+#define IDM_NEW				1003
+#define IDM_OPEN			1004
+#define IDM_SAVE			1005
+
+#define IDD_DIALOG			1006
+#define IDD_DETAIL			1007
+
+#define IDC_LISTBOX			1008
+#define IDC_ENCIPHER		1009
+#define IDC_DECIPHER		1010
+#define IDC_EDITOR			1011
+#define IDC_TEXTBOX			1012
+#define IDC_TYPE			1013
+
+#define IDC_DETAIL_NAME		1015
+#define IDC_DETAIL_EDITBOX	1016
+#define IDC_DETAIL_BUTTON	1017
