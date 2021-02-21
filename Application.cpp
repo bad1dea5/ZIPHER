@@ -172,7 +172,7 @@ LRESULT Application::DlgProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 			{
 				//	decipher
 				data = application->GetWindowString(IDC_EDITOR);
-				str = application->Decipher<WCHAR>(str.c_str());
+				str = application->Decipher<WCHAR>(data.c_str());
 			}
 
 			switch (::SendMessageW(::GetDlgItem(hwnd, IDC_TYPE), (UINT)CB_GETCURSEL, WPARAM(0), LPARAM(0)))
@@ -211,7 +211,7 @@ LRESULT Application::DlgProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 				break;
 			}
 
-
+			case 1:
 			case 3:
 			{
 				std::wstringstream ss;
@@ -240,7 +240,7 @@ LRESULT Application::DlgProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 			else
 			{
 				//	decipher
-				::SetWindowTextW(::GetDlgItem(hwnd, IDC_TEXTBOX), application->m_vector.back().second.c_str());
+				::SetWindowTextW(::GetDlgItem(hwnd, IDC_TEXTBOX), application->m_vector.back().first.c_str());
 			}
 
 			::SendMessageW(::GetDlgItem(hwnd, IDC_LISTBOX), LB_ADDSTRING, 0, (LPARAM)application->m_vector.back().first.c_str());

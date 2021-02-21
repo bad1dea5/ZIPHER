@@ -29,7 +29,7 @@ protected:
 	{
 		std::random_device device;
 		std::mt19937_64 generator(device());
-		std::uniform_int_distribution<DWORD> distribution(1, 100);
+		std::uniform_int_distribution<DWORD> distribution(0x200, 0x1ef3);
 
 		std::basic_string<T> str(ptr);
 
