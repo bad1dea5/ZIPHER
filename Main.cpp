@@ -1,10 +1,9 @@
 //
-//	2021-02-19T21:15:00Z
+//	2021-03-07T12:03:00Z
 //
 
 #define WIN32_LEAN_AND_MEAN
 
-#include <memory>
 #include "Application.hpp"
 
 //
@@ -12,30 +11,35 @@
 //
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
 {
-	try
-	{
-		std::unique_ptr<Application> app(new Application(hInstance));
-		BOOL result;
-		MSG message;
+	std::unique_ptr<Application> application;
+	MSG message;
+	BOOL result;
 
-		if (FAILED(app->initialize())) {
-			return ERROR_APP_INIT_FAILURE;
+	try { application = std::unique_ptr<Application>(new Application(hInstance)); }
+	catch (std::runtime_error)
+	{
+		::MessageBoxW(NULL, L"Failed to create application!", L"Error", MB_ICONERROR | MB_OK);
+		return -1;
+	}
+
+	if (FAILED(application->initialize()))
+	{
+		::MessageBoxW(NULL, L"Failed to initialize application!", L"Error", MB_ICONERROR | MB_OK);
+		return -1;
+	}
+
+	while ((result = ::GetMessageW(&message, NULL, 0, 0)) != 0)
+	{
+		if (result == -1) {
+			return -1;
 		}
 
-		while ((result = ::GetMessageW(&message, NULL, 0, 0)) > 0)
+		if (!::IsDialogMessageW(application->GetWindow(), &message))
 		{
-			if (result == -1) {
-				return ERROR_FATAL_APP_EXIT;
-			}
-
 			::TranslateMessage(&message);
 			::DispatchMessageW(&message);
 		}
 	}
-	catch (std::runtime_error)
-	{
-		::MessageBoxW(NULL, L"Window initialization failed!", L"ZIPHER", MB_ICONEXCLAMATION | MB_OK);
-	}
 
-	return 0;
+	return static_cast<INT>(message.wParam);
 }

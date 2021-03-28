@@ -1,40 +1,74 @@
 //
-//	2021-02-19T22:14:00Z
+//	2021-03-07T12:04:00Z
 //
-
-#include <cwctype>
-#include <iomanip>
-#include <sstream>
 
 #include "Application.hpp"
 #include "Resource.hpp"
 
-#define WM_INITIALIZE (WM_USER + 1)
+INT_PTR EncipherProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
+INT_PTR DecipherProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam);
 
 //
 //
 //
 Application::Application(HINSTANCE instance)
-	: m_instance(instance), m_window(new Window(instance)), m_vector(), m_method(TRUE)
+	: m_datalist(), m_dialog(), m_instance(instance), m_window()
+{
+	if (!(m_window = ::CreateDialogParamW(
+		m_instance,
+		MAKEINTRESOURCEW(IDD_WINDOW),
+		NULL,
+		DLGPROC(DlgProc),
+		LPARAM(this)
+	)))
+	{
+		throw std::runtime_error("Failed to create window!");
+	}
+
+	LPWSTR buffer;
+
+	::SendMessageW(m_window, WM_SETICON, ICON_SMALL, LPARAM(::LoadIconW(NULL, IDI_APPLICATION)));
+	::SendMessageW(m_window, WM_SETICON, ICON_BIG, LPARAM(::LoadIconW(NULL, IDI_APPLICATION)));
+
+	::LoadStringW(m_instance, IDS_META_NAME, reinterpret_cast<LPWSTR>(&buffer), 0);
+	::SendMessageW(m_window, WM_SETTEXT, 0, LPARAM(buffer));
+
+	::ShowWindow(m_window, TRUE);
+}
+
+//
+//
+//
+Application::~Application()
+{
+}
+
+//
+//
+//
+LRESULT Application::initialize()
 {
 	HWND hwnd;
 
+	//
+	//
+	//
 	if (!(hwnd = ::CreateWindowExW(
 		NULL,
 		TOOLBARCLASSNAME,
 		NULL,
 		WS_CHILD | WS_VISIBLE,
 		0, 0, 0, 0,
-		m_window->GetHandle(),
+		m_window,
 		HMENU(IDC_TOOLBAR),
 		m_instance,
 		NULL
 	)))
 	{
-		throw std::runtime_error("TOOLBARCLASSNAME failed");
+		return -1;
 	}
 
-	TBBUTTON tbButton[] = {
+	TBBUTTON toolbar[] = {
 		{ MAKELONG(STD_FILENEW, 0), IDM_NEW, TBSTATE_ENABLED, BTNS_AUTOSIZE,{ 0 }, 0, 0 },
 		{ MAKELONG(STD_FILEOPEN, 0), IDM_OPEN, TBSTATE_ENABLED, BTNS_AUTOSIZE,{ 0 }, 0, 0 },
 		{ MAKELONG(STD_FILESAVE, 0), IDM_SAVE, TBSTATE_ENABLED, BTNS_AUTOSIZE,{ 0 }, 0, 0 }
@@ -42,268 +76,99 @@ Application::Application(HINSTANCE instance)
 
 	::SendMessageW(hwnd, TB_LOADIMAGES, WPARAM(IDB_STD_SMALL_COLOR), LPARAM(HINST_COMMCTRL));
 	::SendMessageW(hwnd, TB_BUTTONSTRUCTSIZE, WPARAM(sizeof(TBBUTTON)), LPARAM(0));
-	::SendMessageW(hwnd, TB_ADDBUTTONSW, WPARAM(sizeof(tbButton) / sizeof(TBBUTTON)), LPARAM(&tbButton));
+	::SendMessageW(hwnd, TB_ADDBUTTONSW, WPARAM(ARRAYSIZE(toolbar)), LPARAM(&toolbar));
 	::SendMessageW(hwnd, TB_AUTOSIZE, WPARAM(0), LPARAM(0));
 
+
+	//
+	//	statusbar
+	//
 	if (!(hwnd = ::CreateWindowExW(
 		NULL,
 		STATUSCLASSNAMEW,
 		NULL,
 		WS_CHILD | WS_VISIBLE,
 		0, 0, 0, 0,
-		m_window->GetHandle(),
+		m_window,
 		HMENU(IDC_STATUSBAR),
 		m_instance,
 		NULL
 	)))
 	{
-		throw std::runtime_error("STATUSCLASSNAME failed");
+		return -1;
 	}
 
-	INT sbWidth[] = { 100,200,300,-1 };
+	INT widths[] = { 100, 200, 400, -1 };
 
-	::SendMessageW(hwnd, SB_SETPARTS, WPARAM(sizeof(sbWidth) / sizeof(int)), LPARAM(&sbWidth));
-	::SendMessageW(hwnd, SB_SETTEXTW, WPARAM(0), LPARAM(L"1.0.0.0"));
+	::SendMessageW(hwnd, SB_SETPARTS, WPARAM(ARRAYSIZE(widths)), LPARAM(&widths));
+	::SendMessageW(hwnd, SB_SETTEXTW, WPARAM(0), LPARAM(L""));
 	::SendMessageW(hwnd, SB_SETTEXTW, WPARAM(1), LPARAM(L""));
 
-	if (!(m_dialog = ::CreateDialogParamW(
-		m_instance,
-		MAKEINTRESOURCEW(IDD_DIALOG),
-		m_window->GetHandle(),
-		DLGPROC(DlgProc),
-		LPARAM(this)
-	)))
-	{
-		throw std::runtime_error("Dialog failed");
-	}
-
-	::ShowWindow(m_dialog, TRUE);
-}
-
-//
-//
-//
-LONG Application::initialize()
-{
 	//
 	//
 	//
-	::SendMessageW(::GetDlgItem(m_dialog, IDC_ENCIPHER), BM_SETCHECK, WPARAM(BST_CHECKED), 0);
-
-	//
-	//
-	//
-	WCHAR types[4][12] = {
-		L"Normal", L"ASM (AT&T)", L"ASM (Intel)", L"C++"
+	TABPAGE tabs[] = {
+		{{ TCIF_IMAGE | TCIF_TEXT, 0, 0, LPWSTR(L"Encipher"), 0, -1, 0 }, IDD_ENCIPHER, EncipherProc },
+		{{ TCIF_IMAGE | TCIF_TEXT, 0, 0, LPWSTR(L"Decipher"), 0, -1, 0 }, IDD_DECIPHER, DecipherProc }
 	};
-	WCHAR str[16] = { 0 };
 
-	for (auto i = 0; i <= 3; i += 1)
+	for (auto i = 0; i < _ARRAYSIZE(tabs); i++)
 	{
-		::wcscpy_s(str, sizeof(str) / sizeof(WCHAR), (WCHAR*)types[i]);
-		::SendMessage(::GetDlgItem(m_dialog, IDC_TYPE), (UINT)CB_ADDSTRING, (WPARAM)0, (LPARAM)str);
+		if (!(hwnd = ::CreateDialogParamW(
+			m_instance,
+			MAKEINTRESOURCEW(tabs[i].resource),
+			::GetDlgItem(m_window, IDC_TABCONTROL),
+			DLGPROC(tabs[i].proc),
+			LPARAM(this)
+		)))
+		{
+			return -1;
+		}
+
+		::SendMessageW(::GetDlgItem(m_window, IDC_TABCONTROL), TCM_INSERTITEMW, i, LPARAM(&tabs[i].name));
+		m_dialog.push_back(std::pair<HWND, TABPAGE>(hwnd, tabs[i]));
 	}
 
-	::SendMessage(::GetDlgItem(m_dialog, IDC_TYPE), CB_SETCURSEL, (WPARAM)0, (LPARAM)0);	
+	::ShowWindow(m_dialog.front().first, TRUE);
 
 	return 0;
 }
 
 //
-//
-//
-std::wstring Application::GetWindowString(INT handle)
+// 
+// 
+std::wstring Application::GetWindowText(HWND hwnd, INT control)
 {
-	std::wstring ws;
 	INT length;
-	WCHAR* ptr;
 
-	if (!(length = ::GetWindowTextLengthW(::GetDlgItem(m_dialog, handle)))) {
+	if (!(length = ::GetWindowTextLengthW(::GetDlgItem(hwnd, control)))) {
 		return std::wstring();
 	}
 
-	if (!(ptr = (WCHAR*)::operator new(sizeof(WCHAR) * (static_cast<std::size_t>(length) + 1)))) {
-		return std::wstring();
-	}
+	std::unique_ptr<WCHAR, VOID(*)(LPWSTR)> buffer(
+		static_cast<LPWSTR>(::operator new(
+			(length + 1) * sizeof(WCHAR)
+		)),
+		[](LPWSTR ptr) { ::operator delete(ptr); }
+	);
 
-	::GetDlgItemTextW(m_dialog, handle, ptr, INT(length + 1));
+	::GetDlgItemTextW(hwnd, control, LPWSTR(buffer.get()), length + 1);
 
-	ws.assign(ptr, length);
-	::operator delete(ptr);
-
-	return ws;
+	return std::wstring(LPWSTR(buffer.get()));
 }
 
 //
 //
 //
-LRESULT Application::DlgProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+INT_PTR Application::DlgProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam)
 {
 	Application* application = reinterpret_cast<Application*>(::GetWindowLongPtrW(hwnd, DWLP_USER));
 
-	switch (msg)
+	switch (message)
 	{
 	case WM_INITDIALOG:
 		::SetWindowLongPtrW(hwnd, DWLP_USER, LONG_PTR(lparam));
 		break;
-
-	case WM_CTLCOLORBTN:
-	case WM_CTLCOLORSTATIC:
-	case WM_CTLCOLORDLG:
-		return (LRESULT)::GetStockObject(WHITE_BRUSH);
-
-	case WM_COMMAND:
-		switch (LOWORD(wparam))
-		{
-		case IDOK:
-		{
-			std::wstring str;
-			std::wstring data;
-
-			application->m_method = (INT)::SendMessageW(::GetDlgItem(hwnd, IDC_ENCIPHER), BM_GETCHECK, 0, 0);
-
-			if (application->m_method)
-			{
-				//	encipher
-				str = application->GetWindowString(IDC_TEXTBOX);
-				data = application->Encipher<WCHAR>(str.c_str());
-			}
-			else
-			{
-				//	decipher
-				data = application->GetWindowString(IDC_EDITOR);
-				str = application->Decipher<WCHAR>(data.c_str());
-			}
-
-			switch (::SendMessageW(::GetDlgItem(hwnd, IDC_TYPE), (UINT)CB_GETCURSEL, WPARAM(0), LPARAM(0)))
-			{
-			case 0:
-				application->m_vector.push_back(std::make_pair<std::wstring, std::wstring>(
-					std::wstring(str),
-					std::wstring(data)
-				));
-				break;
-
-			case 2:
-			{
-				std::wstringstream ss;
-
-				for (auto iter = data.cbegin(); iter != data.cend(); iter++) 
-				{
-					std::wstringstream ws;
-
-					ws << std::hex << INT(*iter);
-
-					if (std::iswalpha(ws.str().front())) {
-						ss << "0";
-					}
-
-					ss << std::hex << INT(*iter) << "h, ";
-				}
-
-				ss << "0";
-
-				application->m_vector.push_back(std::make_pair<std::wstring, std::wstring>(
-					std::wstring(str),
-					std::wstring(ss.str())
-				));
-
-				break;
-			}
-
-			case 1:
-			case 3:
-			{
-				std::wstringstream ss;
-
-				for (auto iter = data.cbegin(); iter != data.cend(); iter++) {
-					ss << std::hex << "0x" << std::setfill<WCHAR>('0') << INT(*iter) << ", ";
-				}
-
-				ss << "0";
-
-				application->m_vector.push_back(std::make_pair<std::wstring, std::wstring>(
-					std::wstring(str),
-					std::wstring(ss.str())
-				));
-
-				break;
-			}
-
-			}
-
-			if (application->m_method)
-			{
-				//	encipher
-				::SetWindowTextW(::GetDlgItem(hwnd, IDC_EDITOR), application->m_vector.back().second.c_str());
-			}
-			else
-			{
-				//	decipher
-				::SetWindowTextW(::GetDlgItem(hwnd, IDC_TEXTBOX), application->m_vector.back().first.c_str());
-			}
-
-			::SendMessageW(::GetDlgItem(hwnd, IDC_LISTBOX), LB_ADDSTRING, 0, (LPARAM)application->m_vector.back().first.c_str());
-			
-			break;
-		}
-
-		case IDC_LISTBOX:
-			switch (HIWORD(wparam))
-			{
-			case LBN_SELCHANGE:
-			{
-				::CreateDialogParamW(
-					application->m_instance,
-					MAKEINTRESOURCEW(IDD_DETAIL),
-					application->m_window->GetHandle(),
-					DLGPROC(DetailProc),
-					LPARAM(application)
-				);
-
-				break;
-			}
-
-			}
-			break;
-
-		}
-		break;
-
-	default:
-		return FALSE;
-	}
-
-	return TRUE;
-}
-
-LRESULT Application::DetailProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
-{
-	Application* application = reinterpret_cast<Application*>(::GetWindowLongPtrW(hwnd, DWLP_USER));
-
-	switch (msg)
-	{
-	case WM_INITDIALOG:
-	{
-		::SetWindowLongPtrW(hwnd, DWLP_USER, LONG_PTR(lparam));
-		::ShowWindow(hwnd, TRUE);
-		::SendMessageW(hwnd, WM_INITIALIZE, 0, 0);
-		break;
-	}
-
-	case WM_INITIALIZE:
-	{
-		INT pos = (INT)::SendMessageW(::GetDlgItem(application->m_dialog, IDC_LISTBOX), LB_GETCURSEL, 0, 0);
-
-		if (pos > application->m_vector.size()) {
-			break;
-		}
-
-		::SetWindowTextW(::GetDlgItem(hwnd, IDC_DETAIL_NAME), application->m_vector.at(pos).first.c_str());
-		::SetWindowTextW(::GetDlgItem(hwnd, IDC_DETAIL_EDITBOX), application->m_vector.at(pos).second.c_str());
-
-		break;
-	}
 
 	case WM_CTLCOLORBTN:
 	case WM_CTLCOLORSTATIC:
@@ -312,16 +177,140 @@ LRESULT Application::DetailProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lpara
 
 	case WM_CLOSE:
 		::DestroyWindow(hwnd);
-		break;
+		return 0;
+
+	case WM_DESTROY:
+		::PostQuitMessage(0);
+		return 0;
 
 	case WM_COMMAND:
 		switch (LOWORD(wparam))
 		{
-		case IDC_DETAIL_BUTTON:
-			::DestroyWindow(hwnd);
+		case IDC_LISTBOX:
+			switch (HIWORD(wparam))
+			{
+			case LBN_SELCHANGE:
+			{
+				::CreateDialogParamW(
+					application->m_instance,
+					MAKEINTRESOURCEW(IDD_DETAIL),
+					hwnd,
+					DLGPROC(DetailProc),
+					LPARAM(application)
+				);
+				break;
+			}
+			}
 			break;
 		}
 		break;
+
+	case WM_NOTIFY:
+	{
+		switch (((LPNMHDR)lparam)->code)
+		{
+		case TCN_SELCHANGING:
+		{
+			INT index = INT(::SendMessageW(::GetDlgItem(application->m_window, IDC_TABCONTROL), TCM_GETCURSEL, 0, 0));
+			::ShowWindow(application->m_dialog.at(index).first, FALSE);
+			return FALSE;
+		}
+
+		case TCN_SELCHANGE:
+		{
+			INT index = INT(::SendMessageW(::GetDlgItem(application->m_window, IDC_TABCONTROL), TCM_GETCURSEL, 0, 0));
+			::ShowWindow(application->m_dialog.at(index).first, TRUE);
+			break;
+		}
+
+		default:
+			return FALSE;
+		}
+		break;
+	}
+
+	default:
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+//
+//
+//
+INT_PTR Application::DetailProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam)
+{
+	Application* application = reinterpret_cast<Application*>(::GetWindowLongPtrW(hwnd, DWLP_USER));
+
+	switch (message)
+	{
+	case WM_INITDIALOG:
+		::SetWindowLongPtrW(hwnd, DWLP_USER, LONG_PTR(lparam));
+		::ShowWindow(hwnd, TRUE);
+		::SendMessageW(hwnd, WM_USER, 0, 0);
+		break;
+
+	case WM_CTLCOLORBTN:
+	case WM_CTLCOLORSTATIC:
+	case WM_CTLCOLORDLG:
+		return (LRESULT)::GetStockObject(WHITE_BRUSH);
+
+	case WM_CLOSE:
+		::DestroyWindow(hwnd);
+		return 0;
+
+	case WM_COMMAND:
+		switch (LOWORD(wparam))
+		{
+		case IDOK:
+			::SendMessageW(hwnd, WM_CLOSE, 0, 0);
+			break;
+		}
+		break;
+
+	case WM_USER:
+	{
+		INT pos = (INT)::SendMessageW(::GetDlgItem(application->m_window, IDC_LISTBOX), LB_GETCURSEL, 0, 0);
+
+		if (pos > application->m_datalist.size()) {
+			return FALSE;
+		}
+
+		DATALIST data = application->m_datalist.at(pos);
+		std::wstringstream ws;
+
+		::SetWindowTextW(::GetDlgItem(hwnd, IDX_NAME), data.in.c_str());
+		::SetWindowTextW(::GetDlgItem(hwnd, IDX_EDIT), data.out.c_str());
+
+		switch (data.type)
+		{
+		case 0:
+			::SetWindowTextW(::GetDlgItem(hwnd, IDX_TYPE), LPCWSTR(L"ASM (AT&T)"));
+			break;
+		case 1:
+			::SetWindowTextW(::GetDlgItem(hwnd, IDX_TYPE), LPCWSTR(L"ASM (Intel)"));
+			break;
+		case 2:
+			::SetWindowTextW(::GetDlgItem(hwnd, IDX_TYPE), LPCWSTR(L"C++"));
+			break;
+		case 3:
+			::SetWindowTextW(::GetDlgItem(hwnd, IDX_TYPE), LPCWSTR(L"Normal"));
+			break;
+		}
+
+		//::SetWindowTextW(::GetDlgItem(hwnd, IDX_TYPE), data.type);
+
+		ws << std::hex << "0x" << std::setfill<WCHAR>('0') << data.min;
+		::SetWindowTextW(::GetDlgItem(hwnd, IDX_MIN), ws.str().c_str());
+
+		ws = std::wstringstream();
+
+		ws << std::hex << "0x" << std::setfill<WCHAR>('0') << data.max;
+		::SetWindowTextW(::GetDlgItem(hwnd, IDX_MAX), ws.str().c_str());
+
+		break;
+	}
 
 	default:
 		return FALSE;

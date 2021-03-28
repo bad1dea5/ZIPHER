@@ -1,24 +1,41 @@
 //
-//	2021-02-19T21:47:00Z
+//	2021-03-07T12:28:00Z
 //
 
-#define IDC_TOOLBAR			1001
-#define IDC_STATUSBAR		1002
+#define IDS_META_NAME	101
 
-#define IDM_NEW				1003
-#define IDM_OPEN			1004
-#define IDM_SAVE			1005
+#define IDD_WINDOW		1001
+#define IDD_ENCIPHER	1002
+#define IDD_DECIPHER	1003
+#define IDD_DETAIL		1023
 
-#define IDD_DIALOG			1006
-#define IDD_DETAIL			1007
+#define IDM_NEW			1004
+#define IDM_OPEN		1005
+#define IDM_SAVE		1006
 
-#define IDC_LISTBOX			1008
-#define IDC_ENCIPHER		1009
-#define IDC_DECIPHER		1010
-#define IDC_EDITOR			1011
-#define IDC_TEXTBOX			1012
-#define IDC_TYPE			1013
+#define IDC_STATIC		-1
 
-#define IDC_DETAIL_NAME		1015
-#define IDC_DETAIL_EDITBOX	1016
-#define IDC_DETAIL_BUTTON	1017
+#define IDC_TOOLBAR		1007
+#define IDC_STATUSBAR	1008
+#define IDC_LISTBOX		1009
+#define IDC_TABCONTROL	1010
+
+#define IDE_EDIT		1011
+#define IDE_DATA		1012
+#define IDE_TYPE		1013
+#define IDE_OPTION1		1014
+#define IDE_OPTION2		1015
+#define IDE_OPTION3		1016
+#define IDE_OPTION4		1017
+
+#define IDE_MIN			1018
+#define IDE_MAX			1019
+#define IDE_MIN_SPIN	1020
+#define IDE_MAX_SPIN	1021
+#define IDE_ENCIPHER	1022
+
+#define IDX_EDIT		1024
+#define IDX_TYPE		1025
+#define IDX_MIN			1026
+#define IDX_MAX			1027
+#define IDX_NAME		1028
